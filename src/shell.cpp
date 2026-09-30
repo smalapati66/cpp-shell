@@ -1,6 +1,12 @@
 #include "shell.h"
 
+#include <sys/wait.h>
+#include <unistd.h>
+
+#include <cerrno>
+#include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <iostream>
 #include <sstream>
@@ -28,7 +34,41 @@ void Shell::run() {
         if (run_builtin(args)) {
             continue;
         }
-        // TODO: run external commands (fork/execvp)
+        execute_external(args);
+    }
+}
+
+void Shell::execute_external(const std::vector<std::string>& args) {
+    std::vector<char*> argv;
+    for (const std::string& arg : args) {
+        argv.push_back(const_cast<char*>(arg.c_str()));
+    }
+    argv.push_back(nullptr);
+
+    const pid_t pid = fork();
+    if (pid < 0) {
+        std::perror("fork");
+        return;
+    }
+
+    if (pid == 0) {
+        execvp(argv[0], argv.data());
+        // Only reached if exec failed. Must _exit so the child never
+        // returns into the REPL and reads from the terminal as a second shell.
+        std::cerr << args[0] << ": "
+                  << (errno == ENOENT ? "command not found" : std::strerror(errno)) << '\n';
+        _exit(127);
+    }
+
+    int status = 0;
+    if (waitpid(pid, &status, 0) < 0) {
+        std::perror("waitpid");
+        return;
+    }
+    if (WIFEXITED(status)) {
+        last_status_ = WEXITSTATUS(status);
+    } else if (WIFSIGNALED(status)) {
+        last_status_ = 128 + WTERMSIG(status);
     }
 }
 

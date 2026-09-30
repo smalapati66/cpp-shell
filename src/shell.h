@@ -16,5 +16,8 @@ private:
     void builtin_cd(const std::vector<std::string>& args);
     void builtin_pwd() const;
 
+    void execute_external(const std::vector<std::string>& args);
+
     std::string prompt_ = "$ ";
+    int last_status_ = 0;
 };
