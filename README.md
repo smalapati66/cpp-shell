@@ -1,1 +1,1 @@
-Making cpp shell 4 fun
+Making c++ shell for fun and learning
