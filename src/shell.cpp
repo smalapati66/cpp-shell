@@ -7,16 +7,79 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <cctype>
 #include <filesystem>
 #include <iostream>
-#include <sstream>
 
-std::vector<std::string> tokenize(const std::string& line) {
+enum class TokenStatus {
+  NORMAL,
+  SINGLE_Q,
+  DOUBLE_Q,
+  DOUBLE_Q_ESCAPE
+};
+
+std::optional<std::vector<std::string>> tokenize(const std::string& line) {
+    TokenStatus status = TokenStatus::NORMAL;
     std::vector<std::string> tokens;
-    std::istringstream stream(line);
     std::string token;
-    while (stream >> token) {
-        tokens.push_back(token);
+    bool in_token = false;
+    for (char c : line) {
+        switch (status) {
+          case TokenStatus::NORMAL:
+            if (std::isspace(static_cast<unsigned char>(c)) != 0) {
+              if (in_token) {
+                tokens.push_back(token);
+              }
+              token.clear();
+              in_token = false;
+            }
+            else if (c == '"') {
+              status = TokenStatus::DOUBLE_Q;
+              in_token = true;
+            }
+            else if (c == '\'') {
+              status = TokenStatus::SINGLE_Q;
+              in_token = true;
+            }
+            else {
+              token += c;
+              in_token = true;
+            }
+            break;
+          case TokenStatus::SINGLE_Q:
+            if (c == '\'') {
+              status = TokenStatus::NORMAL;
+            }
+            else {
+              token += c;
+              in_token = true;
+            }
+            break;
+          case TokenStatus::DOUBLE_Q:
+            if (c == '"') {
+              status = TokenStatus::NORMAL;
+            }
+            else if (c == '\\') {
+              status = TokenStatus::DOUBLE_Q_ESCAPE;
+            }
+            else {
+              token += c;
+            }
+            break;
+          case TokenStatus::DOUBLE_Q_ESCAPE:
+            if (c != '"' && c != '\\') {
+              token += '\\';
+            }
+            token += c;
+            status = TokenStatus::DOUBLE_Q;
+            break;
+        }
+    }
+    if (status != TokenStatus::NORMAL) {
+      return std::nullopt;
+    }
+    if (in_token) {
+      tokens.push_back(token);
     }
     return tokens;
 }
@@ -24,7 +87,12 @@ std::vector<std::string> tokenize(const std::string& line) {
 void Shell::run() {
     std::string line;
     while (std::cout << prompt_ && std::getline(std::cin, line)) {
-        const std::vector<std::string> args = tokenize(line);
+        const auto tokens = tokenize(line);
+        if (!tokens) {
+          std::cerr << "syntax error: unterminated quote\n";
+          continue;
+        }
+        const std::vector<std::string>& args = *tokens;
         if (args.empty()) {
             continue;
         }
