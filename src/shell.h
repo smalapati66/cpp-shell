@@ -2,10 +2,8 @@
 
 #include <string>
 #include <vector>
-#include <optional>
 
-// Splits a line on whitespace into tokens. No quoting or escaping yet.
-std::optional<std::vector<std::string>> tokenize(const std::string& line);
+#include "lexer.h"
 
 class Shell {
 public:
