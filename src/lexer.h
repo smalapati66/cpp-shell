@@ -8,7 +8,7 @@
 
 struct Token {
     std::string text;      // quotes removed, escapes resolved
-    bool quoted = false;   // any part of the word was quoted (expansion must skip it later)
+    bool quoted = false;   // any part of the word was quoted or escaped (expansion must skip it later)
 };
 
 // Scans a command line into tokens. Each lex_* method consumes input from
@@ -30,6 +30,7 @@ private:
     bool lex_word(Token& out);
     bool lex_single_quote(std::string& out);
     bool lex_double_quote(std::string& out);
+    void lex_escape(std::string& out);
 
     std::string_view src_;  // non-owning view; the caller's string must outlive the Lexer
     std::size_t pos_ = 0;

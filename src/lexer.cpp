@@ -42,11 +42,23 @@ bool Lexer::lex_word(Token& out) {
         } else if (c == '"') {
             out.quoted = true;
             if (!lex_double_quote(out.text)) return false;
+        } else if (c == '\\') {
+            out.quoted = true;
+            lex_escape(out.text);
         } else {
             out.text += c;
         }
     }
     return true;
+}
+
+// Called after an unquoted \. The next character is taken literally,
+// whatever it is. A trailing \ at end of line is dropped, as bash -c does;
+// line continuation can come later with multi-line input.
+void Lexer::lex_escape(std::string& out) {
+    if (!at_end()) {
+        out += advance();
+    }
 }
 
 // Called after the opening '. Everything is literal until the closing '.
