@@ -21,6 +21,11 @@ std::optional<std::vector<Token>> Lexer::run() {
         if (!lex_word(token)) {
             return std::nullopt;
         }
+        // A lone trailing \ leaves an empty, unquoted word, which isn't an
+        // argument. Quoted empties like '' are kept.
+        if (token.text.empty() && !token.quoted) {
+            continue;
+        }
         tokens.push_back(std::move(token));
     }
 }
@@ -43,6 +48,8 @@ bool Lexer::lex_word(Token& out) {
             out.quoted = true;
             if (!lex_double_quote(out.text)) return false;
         } else if (c == '\\') {
+            // A trailing \ contributes nothing, so it must not mark the word quoted.
+            if (at_end()) break;
             out.quoted = true;
             lex_escape(out.text);
         } else {
@@ -52,13 +59,11 @@ bool Lexer::lex_word(Token& out) {
     return true;
 }
 
-// Called after an unquoted \. The next character is taken literally,
-// whatever it is. A trailing \ at end of line is dropped, as bash -c does;
-// line continuation can come later with multi-line input.
+// Called after an unquoted \ that isn't at end of line (lex_word drops a
+// trailing \, as bash -c does; line continuation can come later with
+// multi-line input). The next character is taken literally, whatever it is.
 void Lexer::lex_escape(std::string& out) {
-    if (!at_end()) {
-        out += advance();
-    }
+    out += advance();
 }
 
 // Called after the opening '. Everything is literal until the closing '.
